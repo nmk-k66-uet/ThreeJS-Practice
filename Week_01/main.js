@@ -126,7 +126,7 @@ function createCat() {
     // --- 5. Mouth & Arms (Torus Segments) ---
     const lineGeo = new THREE.TorusGeometry(0.2, 0.02, 16, 100, Math.PI); // Half-circle
     const mouth = new THREE.Mesh(lineGeo, blackMat);
-    mouth.position.set(0, 0.3, 0.1);
+    mouth.position.set(0, 0.15, 0.1);
     mouth.rotation.z = Math.PI; // Flip to form a frown/mouth
     catGroup.add(mouth);
 
@@ -159,14 +159,48 @@ function createCat() {
 
     // Add the arms to your catGroup
     const leftArm = createUArm();
-    leftArm.position.set(-0.4, -0.2, 0.15);
+    leftArm.position.set(-0.4, -0.5, 0.15);
     leftArm.rotation.z = Math.PI / 8; // Slight tilt
     catGroup.add(leftArm);
 
     const rightArm = createUArm();
-    rightArm.position.set(0.4, -0.2, 0.15);
+    rightArm.position.set(0.4, -0.5, 0.15);
     rightArm.rotation.z = -Math.PI / 8;
     catGroup.add(rightArm);
+
+    // --- 6. Whiskers (3 on each side) ---
+    function createWhiskers(isLeft) {
+        const group = new THREE.Group();
+        // Thin capsule (radius 0.01) creates a line effect with rounded ends
+        const whiskerGeo = new THREE.CapsuleGeometry(0.01, 0.4, 4, 8);
+        const sideFactor = isLeft ? -1 : 1;
+
+        for (let i = 0; i < 3; i++) {
+            const whisker = new THREE.Mesh(whiskerGeo, blackMat);
+            
+            // Rotation: PI/2 is horizontal. 
+            // (i - 1) * 0.25 tilts the top one up, middle flat, and bottom down
+            whisker.rotation.z = (Math.PI / 2) + (sideFactor * (i - 1) * 0.25);
+            
+            // Vertical spacing between whiskers
+            whisker.position.y = (1 - i) * 0.12;
+            
+            // Offset the pivot so they grow outward from the face
+            whisker.position.x = sideFactor * 0.2; 
+
+            group.add(whisker);
+        }
+        return group;
+    }
+
+    // Position the whiskers on the cheeks
+    const leftWhiskers = createWhiskers(true);
+    leftWhiskers.position.set(0.65, 0.1, 0.1); 
+    catGroup.add(leftWhiskers);
+
+    const rightWhiskers = createWhiskers(false);
+    rightWhiskers.position.set(-0.65, 0.1, 0.1); 
+    catGroup.add(rightWhiskers);
 
     return catGroup;
 }
