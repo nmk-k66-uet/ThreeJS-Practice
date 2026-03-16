@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Materials & Lighting</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: sans-serif; background-color: #000; }
+        canvas { display: block; }
+        
+        /* Giao diện Tab */
+        #ui-layer {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 100;
+        }
+
+        .tab-button {
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 5px;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+            transition: all 0.3s;
+            text-transform: uppercase;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        .tab-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .tab-button.active {
+            background: #2196F3;
+            border-color: #2196F3;
+            box-shadow: 0 0 15px rgba(33, 150, 243, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div id="ui-layer">
+        <button id="btn-materials" class="tab-button active">Vật liệu (Materials)</button>
+        <button id="btn-lights" class="tab-button">Ánh sáng (Lights)</button>
+    </div>
+    <script type="module" src="main.js">
+    </script>
+</body>
+</html>
