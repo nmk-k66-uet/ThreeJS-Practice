@@ -11,6 +11,10 @@ document.body.appendChild( renderer.domElement );
 const geometry = new THREE.BoxGeometry( 1, 1, 1 );
 const material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
 const cube = new THREE.Mesh( geometry, material );
+
+cube.position.x = 4
+cube.position.y = -2
+
 scene.add( cube );
 
 camera.position.z = 5;
