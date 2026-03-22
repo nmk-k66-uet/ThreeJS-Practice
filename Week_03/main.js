@@ -90,7 +90,7 @@ function createRobotArm() {
 
     // --- GẮN CAMERA POV ---
     head.add(cameraPOV);
-    cameraPOV.position.set(0, 0, 0.8); 
+    cameraPOV.position.set(0, 0, 0); 
     cameraPOV.rotation.set(0, 0, 0);
 
     robotArm = { base, joint1, joint2, arm2Pivot, head };
@@ -128,16 +128,16 @@ function setupStudio() {
     scene.add(helperGroup);
 
     // --- GUI CONTROL ---
-    gui = new GUI({ title: '🎬 Studio Manual Control' });
+    gui = new GUI({ title: 'Studio Manager' });
     
-    const robotFolder = gui.addFolder('🕹️ Điều khiển Robot');
+    const robotFolder = gui.addFolder('Robot Controller');
     const robotParams = { pan: 0, tilt1: 0, tilt2: Math.PI / 4, posX: 0, posZ: 10 };
 
-    robotFolder.add(robotParams, 'posX', -15, 15).name('Vị trí X').onChange(v => robotRig.position.x = v);
-    robotFolder.add(robotParams, 'posZ', -15, 15).name('Vị trí Z').onChange(v => robotRig.position.z = v);
-    robotFolder.add(robotParams, 'pan', -Math.PI, Math.PI).name('Xoay Thân (Pan)').onChange(v => robotArm.joint1.rotation.y = v);
-    robotFolder.add(robotParams, 'tilt1', -Math.PI/3, Math.PI/3).name('Khớp 1 (Tilt)').onChange(v => robotArm.joint1.rotation.x = v);
-    robotFolder.add(robotParams, 'tilt2', -Math.PI/2, Math.PI/2).name('Khớp 2 (Tilt)').onChange(v => robotArm.arm2Pivot.rotation.x = v);
+    robotFolder.add(robotParams, 'posX', -15, 15).name('X-axis').onChange(v => robotRig.position.x = v);
+    robotFolder.add(robotParams, 'posZ', -15, 15).name('Z-axis').onChange(v => robotRig.position.z = v);
+    robotFolder.add(robotParams, 'pan', -Math.PI, Math.PI).name('Pan').onChange(v => robotArm.joint1.rotation.y = v);
+    robotFolder.add(robotParams, 'tilt1', -Math.PI/3, Math.PI/3).name('Tilt 1').onChange(v => robotArm.joint1.rotation.x = v);
+    robotFolder.add(robotParams, 'tilt2', -Math.PI/2, Math.PI/2).name('Tilt 2').onChange(v => robotArm.arm2Pivot.rotation.x = v);
     robotFolder.open();
 
     const lightManager = {
@@ -155,11 +155,11 @@ function setupStudio() {
         }
     };
 
-    const manageFolder = gui.addFolder('➕ Thêm Ánh Sáng');
-    manageFolder.add(lightManager, 'addPoint').name('Thêm Point Light');
-    manageFolder.add(lightManager, 'addDirectional').name('Thêm Directional Light');
-    manageFolder.add(lightManager, 'addSpot').name('Thêm Spot Light');
-    manageFolder.add(lightManager, 'removeAll').name('Xóa tất cả đèn');
+    const manageFolder = gui.addFolder('Lighting Controller');
+    manageFolder.add(lightManager, 'addPoint').name('Add Point Light');
+    manageFolder.add(lightManager, 'addDirectional').name('Add Directional Light');
+    manageFolder.add(lightManager, 'addSpot').name('Add Spot Light');
+    manageFolder.add(lightManager, 'removeAll').name('Remove All Lights');
 
     gui.add(helperGroup, 'visible').name('Show Light Helpers');
     createDynamicLight('spot', { x: 8, y: 12, z: 8, intensity: 150 });
@@ -199,12 +199,12 @@ function createDynamicLight(type, config = {}) {
     helperGroup.add(helper);
 
     const folder = gui.addFolder(`${type.toUpperCase()} #${id}`);
-    folder.add(light, 'visible').name('Bật/Tắt');
-    folder.add(helper, 'visible').name('Hiện Guide');
-    folder.addColor(light, 'color').name('Màu');
-    folder.add(light, 'intensity', 0, 1000).name('Cường độ');
+    folder.add(light, 'visible').name('Enable/Disable');
+    folder.add(helper, 'visible').name('Show Guide');
+    folder.addColor(light, 'color').name('Color');
+    folder.add(light, 'intensity', 0, 1000).name('Intensity');
     
-    const posF = folder.addFolder('Vị trí');
+    const posF = folder.addFolder('Position');
     posF.add(light.position, 'x', -20, 20).onChange(() => helper.update());
     posF.add(light.position, 'y', 0, 30).onChange(() => helper.update());
     posF.add(light.position, 'z', -20, 20).onChange(() => helper.update());
@@ -263,7 +263,6 @@ function onWindowResize() {
     camera3P.aspect = aspect;
     camera3P.updateProjectionMatrix();
 
-    // Cập nhật camera POV để tránh méo hình
     cameraPOV.aspect = aspect;
     cameraPOV.updateProjectionMatrix();
 
