@@ -11,6 +11,25 @@ let helperGroup;
 let lightList = []; 
 let povLabel;
 
+// Biến quản lý chuyển động tự động (Sequence Management)
+let sequence = [];
+let isPlaying = false;
+let currentKeyframeIndex = 0;
+let progressInFrame = 0; // 0 đến 1
+const frameDuration = 3000; // Thời gian di chuyển giữa 2 keyframes (ms)
+let lastTime = 0;
+
+// Tham số trạng thái của Robot (để đồng bộ GUI và Animation)
+const robotParams = {
+    trackX: 0,
+    pan: 0,
+    lowerLift: 0,
+    upperLift: 0,
+    roll: 0,
+    camTilt: 0,
+    camPan: 0
+};
+
 init();
 setupStudio();
 animate();
@@ -19,14 +38,14 @@ function init() {
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x050505);
 
-    // Khởi tạo Ambient Light cơ bản để cảnh không bị tối đen hoàn toàn
+    // Khởi tạo Ambient Light cơ bản
     ambient = new THREE.AmbientLight(0xffffff, 0.2);
     scene.add(ambient);
 
     const aspect = window.innerWidth / window.innerHeight;
     povLabel = document.getElementById('pov-label');
 
-    // 1. Camera POV (Gắn vào khớp cuối cùng của robot)
+    // 1. Camera POV (Gắn vào đầu robot)
     cameraPOV = new THREE.PerspectiveCamera(60, aspect, 0.1, 1000);
     
     // 2. Camera 3rd Person
@@ -58,7 +77,7 @@ function createRobotArm() {
     track.position.z = 15;
     scene.add(track);
 
-    // 1. Base (Đế di chuyển trên trục X)
+    // 1. Base (Đế di chuyển trên trục X) - Cao 9m như thiết kế
     const base = new THREE.Mesh(new THREE.BoxGeometry(3, 9, 2.5), metalMat);
     group.add(base);
 
@@ -69,7 +88,7 @@ function createRobotArm() {
     const panVisual = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 0.4, 32), jointMat);
     panJoint.add(panVisual);
 
-    // 3. Arm 1: Lower Lift (+90° / -19°)
+    // 3. Arm 1: Lower Lift (-90° / +19°)
     const lowerLiftJoint = new THREE.Group();
     lowerLiftJoint.position.y = 0.2;
     panJoint.add(lowerLiftJoint);
@@ -80,25 +99,25 @@ function createRobotArm() {
 
     // 4. Arm 2: Upper Lift (±62°)
     const upperLiftJoint = new THREE.Group();
-    upperLiftJoint.position.y = 2.5; // Đỉnh arm1
+    upperLiftJoint.position.y = 2.5; 
     arm1.add(upperLiftJoint);
 
     const arm2 = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 4, 16), metalMat);
     arm2.position.y = 2;
     upperLiftJoint.add(arm2);
 
-    // 5. Arm 3: Arm Roll/Tilt (±170°) - Ngắn hơn
+    // 5. Arm 3: Arm Roll/Tilt (±90°)
     const armRollJoint = new THREE.Group();
-    armRollJoint.position.y = 2; // Đỉnh arm2
+    armRollJoint.position.y = 2; 
     arm2.add(armRollJoint);
 
     const arm3 = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 2, 16), metalMat);
     arm3.position.y = 1;
     armRollJoint.add(arm3);
 
-    // 6. Camera Head: Tilt (±116°)
+    // 6. Camera Head: Tilt (-36° / +116°)
     const camTiltJoint = new THREE.Group();
-    camTiltJoint.position.y = 1; // Đỉnh arm3
+    camTiltJoint.position.y = 1; 
     arm3.add(camTiltJoint);
 
     // 7. Camera Head: Pan (±300°)
@@ -108,12 +127,11 @@ function createRobotArm() {
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.5, 1.2), new THREE.MeshStandardMaterial({color: 0x000000}));
     camPanJoint.add(head);
 
-    // --- GẮN CAMERA POV VÀO ĐẦU CAMERA ---
+    // GẮN CAMERA POV
     head.add(cameraPOV);
     cameraPOV.position.set(0, 0, 0); 
     cameraPOV.rotation.set(0, 0, 0);
 
-    // Lưu tham chiếu để điều khiển
     robotArm = { 
         base, 
         pan: panJoint, 
@@ -138,14 +156,9 @@ function setupStudio() {
 
     scene.add(new THREE.GridHelper(50, 50, 0x444444, 0x222222));
 
-    // Mặt phẳng nền
     const ground = new THREE.Mesh(
         new THREE.PlaneGeometry(100, 100),
-        new THREE.MeshStandardMaterial({ 
-            color: 0x333333, 
-            roughness: 0.6, 
-            metalness: 0.1 
-        })
+        new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.6, metalness: 0.1 })
     );
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
@@ -160,36 +173,49 @@ function setupStudio() {
 
     gui = new GUI({ title: 'Studio Manager' });
     
-    // --- ĐIỀU KHIỂN ROBOT ---
+    // --- ROBOT CONTROLLER ---
     const robotFolder = gui.addFolder('Robot Rig Controller');
-    const degToRad = THREE.MathUtils.degToRad;
-
-    const robotParams = {
-        trackX: 0,
-        pan: 0,
-        lowerLift: 0,
-        upperLift: 0,
-        roll: 0,
-        camTilt: 0,
-        camPan: 0
-    };
-
-    robotFolder.add(robotParams, 'trackX', -10, 10).name('Track (X Axis)').onChange(v => robotRig.position.x = v);
-    robotFolder.add(robotParams, 'pan', -176, 176).name('Arm Pan (±176°)').onChange(v => { robotArm.pan.rotation.y = degToRad(v); });
-    robotFolder.add(robotParams, 'lowerLift', -90, 19).name('Lower Lift (-90°/+19°)').onChange(v => { robotArm.lowerLift.rotation.x = degToRad(v); });
-    robotFolder.add(robotParams, 'upperLift', -62, 62).name('Upper Lift (±62°)').onChange(v => { robotArm.upperLift.rotation.x = degToRad(v); });
-    robotFolder.add(robotParams, 'roll', -90, 90).name('Arm Roll/Tilt (±90°)').onChange(v => { robotArm.roll.rotation.x = degToRad(v); });
-    robotFolder.add(robotParams, 'camTilt', -36, 116).name('Camera Tilt (-36°/+116°)').onChange(v => { robotArm.camTilt.rotation.x = degToRad(v); });
-    robotFolder.add(robotParams, 'camPan', -300, 300).name('Camera Pan (±300°)').onChange(v => { robotArm.camPan.rotation.y = degToRad(v); });
-
+    
+    robotFolder.add(robotParams, 'trackX', -10, 10).name('Track (X Axis)').onChange(applyRobotParams);
+    robotFolder.add(robotParams, 'pan', -176, 176).name('Arm Pan (±176°)').onChange(applyRobotParams);
+    robotFolder.add(robotParams, 'lowerLift', -90, 19).name('Lower Lift (-90°/+19°)').onChange(applyRobotParams);
+    robotFolder.add(robotParams, 'upperLift', -62, 62).name('Upper Lift (±62°)').onChange(applyRobotParams);
+    robotFolder.add(robotParams, 'roll', -90, 90).name('Arm Roll (±90°)').onChange(applyRobotParams);
+    robotFolder.add(robotParams, 'camTilt', -36, 116).name('Camera Tilt (-36°/+116°)').onChange(applyRobotParams);
+    robotFolder.add(robotParams, 'camPan', -300, 300).name('Camera Pan (±300°)').onChange(applyRobotParams);
     robotFolder.open();
+
+    // --- SEQUENCE CONTROLLER ---
+    const seqFolder = gui.addFolder('🎬 Auto Motion Sequence');
+    const seqActions = {
+        addKeyframe: () => {
+            sequence.push({ ...robotParams });
+            updateStatus(`Keyframes: ${sequence.length}`);
+        },
+        clearSequence: () => {
+            sequence = [];
+            isPlaying = false;
+            updateStatus('Sequence Cleared');
+        },
+        play: () => {
+            if (sequence.length < 2) {
+                updateStatus('Need at least 2 keyframes');
+                return;
+            }
+            isPlaying = !isPlaying;
+            updateStatus(isPlaying ? '▶️ Playing Sequence...' : '⏸️ Paused');
+        }
+    };
+    seqFolder.add(seqActions, 'addKeyframe').name('Add Current as Keyframe');
+    seqFolder.add(seqActions, 'play').name('Play/Pause Sequence');
+    seqFolder.add(seqActions, 'clearSequence').name('Clear All');
+    seqFolder.open();
 
     // Lighting Controller
     const lightManager = {
-        addHemisphere: () => createDynamicLight('hemisphere'),
-        addDirectional: () => createDynamicLight('directional'),
         addPoint: () => createDynamicLight('point'),
         addSpot: () => createDynamicLight('spot'),
+        addAmbient: () => createDynamicLight('ambient'),
         removeAll: () => {
             lightList.forEach(l => {
                 scene.remove(l.light);
@@ -202,16 +228,73 @@ function setupStudio() {
     };
     
     const manageFolder = gui.addFolder('Lighting Controller');
-    manageFolder.add(lightManager, 'addHemisphere').name('Add Hemisphere Light');
-    manageFolder.add(lightManager, 'addDirectional').name('Add Directional Light');
     manageFolder.add(lightManager, 'addPoint').name('Add Point Light');
     manageFolder.add(lightManager, 'addSpot').name('Add Spot Light');
+    manageFolder.add(lightManager, 'addAmbient').name('Add Ambient Light');
     manageFolder.add(lightManager, 'removeAll').name('Remove All Lights');
 
     gui.add(helperGroup, 'visible').name('Show Light Helpers');
     
-    // Mặc định tạo một đèn Directional ban đầu thay vì Hemisphere
     createDynamicLight('directional', { intensity: 30, x: 0, y: 30, z: 0 });
+}
+
+// Hàm áp dụng thông số từ robotParams lên các mesh 3D
+function applyRobotParams() {
+    if (isPlaying) return; // Chặn chỉnh tay khi đang chạy sequence
+    const degToRad = THREE.MathUtils.degToRad;
+    robotRig.position.x = robotParams.trackX;
+    robotArm.pan.rotation.y = degToRad(robotParams.pan);
+    robotArm.lowerLift.rotation.x = degToRad(robotParams.lowerLift);
+    robotArm.upperLift.rotation.x = degToRad(robotParams.upperLift);
+    robotArm.roll.rotation.x = degToRad(robotParams.roll);
+    robotArm.camTilt.rotation.x = degToRad(robotParams.camTilt);
+    robotArm.camPan.rotation.y = degToRad(robotParams.camPan);
+}
+
+// Logic nội suy chuyển động tự động
+function updateAutoMotion(delta) {
+    if (!isPlaying || sequence.length < 2) return;
+
+    progressInFrame += delta / frameDuration;
+
+    if (progressInFrame >= 1) {
+        progressInFrame = 0;
+        currentKeyframeIndex = (currentKeyframeIndex + 1) % (sequence.length - 1);
+    }
+
+    const start = sequence[currentKeyframeIndex];
+    const end = sequence[currentKeyframeIndex + 1];
+
+    const lerp = (a, b, t) => a + (b - a) * t;
+
+    // Nội suy tất cả các thông số
+    robotParams.trackX = lerp(start.trackX, end.trackX, progressInFrame);
+    robotParams.pan = lerp(start.pan, end.pan, progressInFrame);
+    robotParams.lowerLift = lerp(start.lowerLift, end.lowerLift, progressInFrame);
+    robotParams.upperLift = lerp(start.upperLift, end.upperLift, progressInFrame);
+    robotParams.roll = lerp(start.roll, end.roll, progressInFrame);
+    robotParams.camTilt = lerp(start.camTilt, end.camTilt, progressInFrame);
+    robotParams.camPan = lerp(start.camPan, end.camPan, progressInFrame);
+
+    // Áp dụng vào mô hình thực tế
+    const degToRad = THREE.MathUtils.degToRad;
+    robotRig.position.x = robotParams.trackX;
+    robotArm.pan.rotation.y = degToRad(robotParams.pan);
+    robotArm.lowerLift.rotation.x = degToRad(robotParams.lowerLift);
+    robotArm.upperLift.rotation.x = degToRad(robotParams.upperLift);
+    robotArm.roll.rotation.x = degToRad(robotParams.roll);
+    robotArm.camTilt.rotation.x = degToRad(robotParams.camTilt);
+    robotArm.camPan.rotation.y = degToRad(robotParams.camPan);
+
+    // Cập nhật hiển thị GUI để các thanh trượt tự di chuyển
+    gui.controllers.forEach(c => {
+        if (c.property in robotParams) c.updateDisplay();
+    });
+}
+
+function updateStatus(msg) {
+    const statusEl = document.getElementById('status');
+    if (statusEl) statusEl.innerText = `STATUS: ${msg}`;
 }
 
 function createDynamicLight(type, config = {}) {
@@ -219,24 +302,12 @@ function createDynamicLight(type, config = {}) {
     const id = lightList.length + 1;
     const color = config.color || 0xffffff;
     const intensity = config.intensity !== undefined ? config.intensity : 1;
-
-    const sync = () => {
-        if (helper && helper.update) helper.update();
-    };
+    const sync = () => { if (helper && helper.update) helper.update(); };
 
     switch(type) {
-        case 'hemisphere':
-            light = new THREE.HemisphereLight(color, 0x442222, intensity);
-            helper = new THREE.Group(); 
-            break;
         case 'directional':
             light = new THREE.DirectionalLight(color, intensity);
             light.castShadow = true;
-            // Cấu hình Shadow cho đèn Directional
-            light.shadow.camera.left = -20;
-            light.shadow.camera.right = 20;
-            light.shadow.camera.top = 20;
-            light.shadow.camera.bottom = -20;
             target = light.target;
             scene.add(target);
             helper = new THREE.DirectionalLightHelper(light, 1);
@@ -253,93 +324,52 @@ function createDynamicLight(type, config = {}) {
             scene.add(target);
             helper = new THREE.SpotLightHelper(light);
             break;
+        case 'ambient':
+            light = new THREE.AmbientLight(color, intensity);
+            helper = new THREE.Group(); 
+            break;
     }
 
-    if (type !== 'hemisphere') {
-        light.position.set(config.x || 0, config.y || 10, config.z || 0);
-    }
-    
+    if (type !== 'ambient') light.position.set(config.x || 0, config.y || 10, config.z || 0);
     scene.add(light);
     helperGroup.add(helper);
 
-    const folderName = `${type.charAt(0).toUpperCase() + type.slice(1)} #${id}`;
-    const folder = gui.addFolder(folderName);
-
-    if (type === 'hemisphere') {
-        folder.addColor(light, 'color').name('skyColor');
-        folder.addColor(light, 'groundColor');
-        folder.add(light, 'intensity', 0, 2);
-        folder.add(light, 'visible');
-    } else if (type === 'directional') {
-        folder.addColor(light, 'color').onChange(sync);
-        folder.add(light, 'intensity', 0, 100).onChange(sync);
-        folder.add(light, 'visible').name('Enable').onChange(v => { helper.visible = v; sync(); });
-        
-        const dPos = folder.addFolder('Position');
-        dPos.add(light.position, 'x', -15, 15).onChange(sync);
-        dPos.add(light.position, 'y', 0, 20).onChange(sync);
-        dPos.add(light.position, 'z', -15, 15).onChange(sync);
-        
-        const dTarget = folder.addFolder('Target');
-        dTarget.add(target.position, 'x', -10, 10).onChange(sync);
-        dTarget.add(target.position, 'y', -5, 5).onChange(sync);
-        dTarget.add(target.position, 'z', -10, 10).onChange(sync);
-    } else if (type === 'point') {
-        folder.addColor(light, 'color').onChange(sync);
-        folder.add(light, 'intensity', 0, 500).onChange(sync);
-        folder.add(light, 'distance', 0, 50).onChange(sync);
-        folder.add(light, 'visible').name('Enable').onChange(v => { helper.visible = v; sync(); });
-
-        const pPos = folder.addFolder('Position');
-        pPos.add(light.position, 'x', -15, 15).onChange(sync);
-        pPos.add(light.position, 'y', 0, 20).onChange(sync);
-        pPos.add(light.position, 'z', -15, 15).onChange(sync);
-    } else if (type === 'spot') {
-        folder.addColor(light, 'color').onChange(sync);
-        folder.add(light, 'intensity', 0, 1000).onChange(sync);
-        folder.add(light, 'distance', 0, 50).onChange(sync);
-        folder.add(light, 'angle', 0, Math.PI / 2).onChange(sync);
-        folder.add(light, 'penumbra', 0, 1).onChange(sync);
-        folder.add(light, 'visible').name('Enable').onChange(v => { helper.visible = v; sync(); });
-
-        const sPos = folder.addFolder('Position');
-        sPos.add(light.position, 'x', -15, 15).onChange(sync);
-        sPos.add(light.position, 'y', 0, 20).onChange(sync);
-        sPos.add(light.position, 'z', -15, 15).onChange(sync);
-        
-        const sTarget = folder.addFolder('Target');
-        sTarget.add(target.position, 'x', -10, 10).onChange(sync);
-        sTarget.add(target.position, 'y', -5, 5).onChange(sync);
-        sTarget.add(target.position, 'z', -10, 10).onChange(sync);
+    const folder = gui.addFolder(`${type.toUpperCase()} #${id}`);
+    folder.addColor(light, 'color').onChange(sync);
+    folder.add(light, 'intensity', 0, 100);
+    if (type !== 'ambient') {
+        const posF = folder.addFolder('Position');
+        posF.add(light.position, 'x', -20, 20).onChange(sync);
+        posF.add(light.position, 'y', 0, 30).onChange(sync);
+        posF.add(light.position, 'z', -20, 20).onChange(sync);
     }
-
-    folder.add({ delete: () => {
-        scene.remove(light);
-        helperGroup.remove(helper);
-        if(target) scene.remove(target);
-        folder.destroy();
-        lightList = lightList.filter(l => l.light !== light);
-    }}, 'delete').name('🗑️ Delete Light');
-
     lightList.push({ light, helper, folder, target });
     sync();
 }
 
-function animate() {
+function animate(time) {
     requestAnimationFrame(animate);
+    const delta = time - lastTime;
+    lastTime = time;
+
     controls.update();
     if (targetObject) targetObject.rotation.y += 0.005;
     
+    // Cập nhật logic chuyển động tự động
+    updateAutoMotion(delta);
+
     lightList.forEach(l => { 
         if (l.helper && l.helper.visible && l.helper.update) l.helper.update(); 
     });
 
+    // RENDER LẦN 1: GÓC NHÌN THỨ 3
     renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
     renderer.setScissor(0, 0, window.innerWidth, window.innerHeight);
     renderer.setScissorTest(true);
     renderer.clear();
     renderer.render(scene, camera3P);
 
+    // RENDER LẦN 2: POV ROBOT
     const scale = 0.25; 
     const povWidth = window.innerWidth * scale;
     const povHeight = window.innerHeight * scale;
