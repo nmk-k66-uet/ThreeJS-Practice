@@ -150,7 +150,7 @@ function setupStudio() {
     helperGroup = new THREE.Group();
     scene.add(helperGroup);
 
-    gui = new GUI({ title: 'Pro Studio Cinema' });
+    gui = new GUI({ title: 'Studio Manager' });
     
     const robotFolder = gui.addFolder('Robot Rig Controller');
     robotFolder.add(robotParams, 'trackX', -15, 15).name('Track (X)').onChange(applyRobotParams);

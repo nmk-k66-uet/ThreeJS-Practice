@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three.js Mastery: Camera, Hierarchy & Animation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fira+Code:wght@400;500&family=Merriweather:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root {
+            --primary: #003d66;
+            --secondary: #11caa0;
+            --accent: #e91e63;
+            --bg-slide: #f3f0df;
+            --text-dark: #1e293b;
+            --code-bg: #0f172a;
+        }
+
+        * { box-sizing: border-box; }
+        body { background-color: #cbd5e1; margin: 0; padding: 50px 0; display: flex; flex-direction: column; align-items: center; gap: 80px; }
+
+        .slide-container {
+            width: 1280px; height: 720px;
+            background-color: var(--bg-slide);
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3);
+            font-family: "DM Sans", sans-serif;
+            color: var(--text-dark);
+            padding: 60px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            border-radius: 8px;
+        }
+
+        .slide-container::before {
+            content: ''; position: absolute; top: -150px; right: -150px; width: 500px; height: 500px;
+            background: linear-gradient(135deg, var(--primary) 0%, rgba(0, 61, 102, 0.05) 100%);
+            border-radius: 50%; opacity: 0.1; z-index: 0;
+        }
+
+        .slide-container > * { position: relative; z-index: 1; }
+
+        h1, h2, h3 { font-family: "Merriweather", serif; color: var(--primary); margin: 0; }
+        .slide-title { 
+            font-size: 42px; font-weight: 700; margin-bottom: 30px; 
+            border-bottom: 4px solid var(--secondary); padding-bottom: 10px;
+            display: flex; align-items: center; gap: 15px;
+        }
+        .slide-title i { color: var(--secondary); font-size: 32px; }
+
+        p, li, td { font-size: 20px; line-height: 1.6; color: #475569; }
+        .highlight { color: var(--secondary); font-weight: bold; }
+        .accent { color: var(--accent); font-weight: bold; }
+
+        .content-area { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; }
+        .two-column { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; align-items: center; }
+        
+        .code-box { 
+            background: var(--code-bg); color: #e2e8f0; padding: 25px; 
+            border-radius: 12px; font-family: "Fira Code", monospace; font-size: 16px;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.5); border-left: 6px solid var(--secondary);
+        }
+
+        .info-card { 
+            background: white; padding: 25px; border-radius: 15px; 
+            border-top: 6px solid var(--primary); box-shadow: 0 10px 15px rgba(0,0,0,0.05);
+        }
+
+        .formula-box {
+            background: #fff; padding: 25px; border-radius: 10px; border: 1px dashed var(--primary);
+            text-align: center; margin: 15px 0; font-family: "Fira Code", monospace;
+        }
+
+        .tag {
+            display: inline-block; padding: 4px 12px; background: var(--primary);
+            color: white; border-radius: 20px; font-size: 14px; font-weight: bold; margin-bottom: 10px;
+        }
+
+        .slide-footer {
+            position: absolute; bottom: 30px; left: 60px; right: 60px;
+            display: flex; justify-content: space-between; align-items: center;
+            border-top: 1px solid rgba(0,0,0,0.1); padding-top: 15px;
+            font-size: 14px; color: #94a3b8;
+        }
+
+        /* Frustum Visual */
+        .frustum-visual {
+            width: 100%; height: 250px; position: relative;
+            background: #fff; border-radius: 12px; border: 1px solid #ddd;
+            display: flex; align-items: center; justify-content: center;
+        }
+    </style>
+</head>
+<body>
+
+<!-- PAGE 1: TITLE -->
+<div class="slide-container" style="background-color: var(--primary); color: white; justify-content: center; align-items: center; text-align: center;">
+    <h1 style="color: white; font-size: 72px; margin-bottom: 20px;">Three.js Engineering:<br>Camera & Animation</h1>
+    <p style="font-size: 28px; color: var(--secondary); opacity: 0.9;">Robotic Rigs, Viewport Splitting & Precision Interpolation</p>
+    <div style="margin-top: 50px; height: 4px; width: 100px; background: var(--secondary); margin-left: auto; margin-right: auto;"></div>
+    <p style="margin-top: 40px; font-style: italic; opacity: 0.7;">Interactive 3D Curriculum for Advanced Developers</p>
+</div>
+
+<!-- PAGE 2: AGENDA -->
+<div class="slide-container">
+    <h2 class="slide-title"><i class="fas fa-stream"></i> Lecture Road Map</h2>
+    <div class="content-area">
+        <div class="two-column">
+            <div>
+                <h3>Module 1: View & Optics</h3>
+                <ul>
+                    <li>Perspective Frustum Deep Dive</li>
+                    <li>OrbitControls & Spherical Motion</li>
+                    <li>The Physics of Interaction Damping</li>
+                    <li>Multi-Viewport Scissor Testing</li>
+                </ul>
+            </div>
+            <div>
+                <h3>Module 2: Animation Engine</h3>
+                <ul>
+                    <li>Scene Graph Transformation Chain</li>
+                    <li>Keyframe Data Structures</li>
+                    <li>Linear Interpolation (LERP) Logic</li>
+                    <li>Time Normalization Techniques</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="slide-footer"><span>Three.js Mastery</span><span>Page 02/20</span></div>
+</div>
+
+<!-- PAGE 3: CAMERA FRUSTUM -->
+<div class="slide-container">
+    <h2 class="slide-title"><i class="fas fa-eye"></i> Perspective Camera: The Frustum</h2>
+    <div class="content-area">
+        <div class="two-column">
+            <div>
+                <p>The <strong>Frustum</strong> is the geometric shape of the camera's field of vision.</p>
+                <ul style="font-size: 18px;">
+                    <li><span class="highlight">Near Plane:</span> Clipping start. Prevents "eye-stabbing" by near geometry.</li>
+                    <li><span class="highlight">Far Plane:</span> Rendering end. Optimizes performance by ignoring distant pixels.</li>
+                    <li><span class="highlight">FOV (Field of View):</span> The vertical angle. Wide FOV (90°+) for action, Narrow FOV (30°-) for portraits.</li>
+                </ul>
+            </div>
+            <div class="info-card">
+                <div class="frustum-visual">
+                    <img src="https://raw.githubusercontent.com/mrdoob/three.js/dev/docs/scenes/frustum.png" style="max-height: 100%;" alt="Camera Frustum Diagram">
+                </div>
+                <p style="font-size: 14px; text-align: center; margin-top: 10px;">Only objects inside this truncated pyramid are rendered.</p>
+            </div>
+        </div>
+    </div>
+    <div class="slide-footer"><span>Three.js Mastery</span><span>Page 03/20</span></div>
+</div>
+
+<!-- PAGE 4: ORBITCONTROLS -->
+<div class="slide-container">
+    <h2 class="slide-title"><i class="fas fa-arrows-spin"></i> Interaction: OrbitControls Mechanism</h2>
+    <div class="content-area">
+        <p>OrbitControls doesn't move the camera like a car; it moves it like a <strong>Satellite</strong>.</p>
+        <div class="two-column">
+            <div class="info-card">
+                <h3>Target Property</h3>
+                <p style="font-size: 18px;">The center of the world for the camera. All rotations happen on a spherical shell centered at <code>controls.target</code>.</p>
+                <div class="code-box" style="font-size: 14px;">
+controls.target.set(0, 2.5, 0);<br>
+controls.update();
+                </div>
+            </div>
+            <div>
+                <h3>Spherical Coordinates</h3>
+                <ul>
+                    <li><span class="highlight">Azimuth:</span> Horizontal angle (left/right).</li>
+                    <li><span class="highlight">Polar:</span> Vertical angle (up/down).</li>
+                    <li><span class="highlight">Distance:</span> Radius of the orbit.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="slide-footer"><span>Three.js Mastery</span><span>Page 04/20</span></div>
+</div>
+
+<!-- PAGE 5: DAMPING -->
+<div class="slide-container">
+    <h2 class="slide-title"><i class="fas fa-wind"></i> Interaction Damping (Inertia)</h2>
+    <div class="content-area">
+        <div class="two-column">
+            <div>
+                <p><strong>Damping</strong> adds physical "weight" to the camera interaction.</p>
+                <div class="tag">MATHEMATICAL FRICTION</div>
+                <p style="font-size: 18px;">Instead of stopping the camera immediately, damping applies a friction coefficient (<code>dampingFactor</code>) to the velocity.</p>
+                <p class="accent">Critical: You must call .update() in the loop!</p>
+            </div>
+            <div class="code-box">
+controls.enableDamping = true;<br>
+controls.dampingFactor = 0.05;<br>
+<br>
+function animate() {<br>
+&nbsp;&nbsp;requestAnimationFrame(animate);<br>
+&nbsp;&nbsp;controls.update(); // Recalculates inertia<br>
+&nbsp;&nbsp;renderer.render(scene, camera);<br>
+}
+            </div>
+        </div>
+    </div>
+    <div class="slide-footer"><span>Three.js Mastery</span><span>Page 05/20</span></div>
+</div>
+
+<!-- PAGE 6: VIEWPORT & SCISSOR -->
+<div class="slide-container">
+    <h2 class="slide-title"><i class="fas fa-th-large"></i> Multi-Viewport & Scissor Test</h2>
+    <div class="content-area">
+        <p>Displaying the <strong>POV Preview</strong> requires rendering the scene twice on one canvas.</p>
+        <div class="code-box" style="margin: 20px 0;">
+renderer.setScissorTest(true);<br>
+<br>
+// 1. Full Screen Render<br>
+renderer.setViewport(0, 0, width, height);<br>
+renderer.setScissor(0, 0, width, height);<br>
+renderer.render(scene, camera3P);<br>
+<br>
+// 2. PiP Render (Bottom Right)<br>
+renderer.setViewport(pipX, pipY, pipW, pipH);<br>
+renderer.setScissor(pipX, pipY, pipW, pipH);<br>
+renderer.clearDepth(); // Layer POV on top of main scene
+        </div>
+        <p style="font-size: 16px;">The <span class="highlight">Scissor</span> defines the clipping rectangle, while the <span class="highlight">Viewport</span> defines the pixel map.</p>
+    </div>
+    <div class="slide-footer"><span>Three.js Mastery</span><span>Page 06/20</span></div>
+</div>
+
+<!-- PAGE 7: SCENE GRAPH -->
+<div class="slide-container">
+    <h2 class="slide-title"><i class="fas fa-sitemap"></i> Scene Graph Hierarchy</h2>
+    <div class="content-area">
+        <div class="two-column">
+            <div>
+                <p>Our Robot uses a <strong>Parent-Child Chain</strong>. Transformations flow "downward".</p>
+                <div class="info-card">
+                    <h3>Hierarchy logic:</h3>
+                    <ul style="font-size: 16px;">
+                        <li><strong>Parent:</strong> Joint A.</li>
+                        <li><strong>Child:</strong> Joint B.</li>
+                        <li>If Joint A rotates, Joint B circles around A while maintaining its own rotation.</li>
+                    </ul>
+                </div>
+            </div>
+            <div style="background: var(--code-bg); padding: 20px; border-radius: 12px; color: #11caa0;">
+                <pre style="margin:0; font-size: 14px;">
+Track (Group)
+ └── RobotRig (Mesh)
+      └── PanJoint (Group)
+           └── LowerLift (Group)
+                └── UpperLift (Group)
+                     └── CameraHead (Mesh)
+                          └── CameraPOV (Object)</pre>
+            </div>
+        </div>
+    </div>
+    <div class="slide-footer"><span>Three.js Mastery</span><span>Page 07/20</span></div>
+</div>
+
+<!-- PAGE 8: LOCAL VS WORLD -->
+<div class="slide-container">
+    <h2 class="slide-title"><i class="fas fa-globe"></i> Local Space vs. World Space</h2>
+    <div class="content-area">
+        <div class="two-column">
+            <div class="info-card">
+                <h3>Local Space</h3>
+                <p style="font-size: 18px;">Coordinates relative to the direct parent. <br>Ex: <code>head.position.z = 0.6</code> is constant.</p>
+            </div>
+            <div class="info-card" style="border-top-color: var(--secondary);">
+                <h3>World Space</h3>
+                <p style="font-size: 18px;">Coordinates relative to (0,0,0) of the Scene. <br>Calculated by: <code>ChildMatrix * ParentMatrix</code>.</p>
+            </div>
+        </div>
+        <p style="text-align: center; margin-top: 30px;">The <span class="highlight">cameraPOV</span> doesn't need to know where the robot is; it only cares about its position on the head!</p>
+    </div>
+    <div class="slide-footer"><span>Three.js Mastery</span><span>Page 08/20</span></div>
+</div>
+
+<!-- PAGE 9: ANIMATION LOGIC -->
+<div class="slide-container" style="background-color: var(--accent); color: white;">
+    <div class="content-area" style="text-align: center;">
+        <h2 style="color: white; font-size: 64px;">SECTION 2</h2>
+        <h3 style="color: #f3f0df; font-size: 48px;">The Math of Motion</h3>
+        <p style="font-size: 24px; color: white;">Deep Dive into Interpolation & Keyframes</p>
+    </div>
+    <div class="slide-footer" style="border-color: rgba(255,255,255,0.2); color: white;"><span>Three.js Mastery</span><span>Page 09/20</span></div>
+</div>
+
+<!-- PAGE 10: KEYFRAME DEFINITION -->
+<div class="slide-container">
+    <h2 class="slide-title"><i class="fas fa-key"></i> Defining Keyframes</h2>
+    <div class="content-area">
+        <p>A <strong>Keyframe</strong> is a snapshot of all mutable states of the robot rig at a specific "checkpoint".</p>
+        <div class="two-column">
+            <div class="code-box">
+{<br>
+&nbsp;&nbsp;trackX: 5.0,<br>
+&nbsp;&nbsp;pan: 45.0,<br>
+&nbsp;&nbsp;lowerLift: -20.0,<br>
+&nbsp;&nbsp;upperLift: 10.0,<br>
+&nbsp;&nbsp;roll: 0.0,<br>
+&nbsp;&nbsp;camTilt: 15.0,<br>
+&nbsp;&nbsp;camPan: -90.0<br>
+}
+            </div>
+            <div>
+                <h3>Sequence Storage</h3>
+                <p style="font-size: 18px;">Our <code>Sequence</code> is an ordered <strong>Array</strong> of these objects.</p>
+                <p style="font-size: 18px;">The goal is to transition between index <code>i</code> and <code>i+1</code> over time.</p>
+            </div>
+        </div>
+    </div>
+    <div class="slide-footer"><span>Three.js Mastery</span><span>Page 10/20</span></div>
+</div>
+
+<!-- PAGE 11: THE TRADE-OFF -->
+<div class="slide-container">
+    <h2 class="slide-title"><i class="fas fa-balance-scale"></i> The Smoothness Trade-off</h2>
+    <div class="content-area">
+        <p>How much data do we need for a 10-second animation?</p>
+        <div class="two-column">
+            <div class="info-card" style="border-top-color: var(--accent);">
+                <h3>Stepped (Manual)</h3>
+                <p style="font-size: 16px;">Requires 60 snapshots per second (600 total). Huge file size, impossible to edit.</p>
+            </div>
+            <div class="info-card" style="border-top-color: var(--secondary);">
+                <h3>Interpolated (Procedural)</h3>
+                <p style="font-size: 16px;">Only needs 2 snapshots (Start/End). Math fills the missing 598 frames automatically.</p>
+            </div>
+        </div>
+        <p style="text-align: center; margin-top: 40px;" class="highlight">Interpolation converts "Data" into "Experience".</p>
+    </div>
+    <div class="slide-footer"><span>Three.js Mastery</span><span>Page 11/20</span></div>
+</div>
+
+<!-- PAGE 12: LERP FORMULA -->
+<div class="slide-container">
+    <h2 class="slide-title"><i class="fas fa-square-root-alt"></i> The LERP Algorithm</h2>
+    <div class="content-area">
+        <p><strong>Linear Interpolation (LERP)</strong> is the core of procedural animation.</p>
+        <div class="formula-box" style="font-size: 40px; color: var(--primary);">
+            Value = A + (B - A) * t
+        </div>
+        <div class="two-column">
+            <ul>
+                <li><span class="highlight">A:</span> Starting value (Keyframe 1).</li>
+                <li><span class="highlight">B:</span> Ending value (Keyframe 2).</li>
+                <li><span class="highlight">t:</span> Progress normalized from 0.0 to 1.0.</li>
+            </ul>
+            <div class="code-box" style="font-size: 14px;">
+// Internal math for t=0.5 (Midpoint)<br>
+A = 10; B = 20;<br>
+Result = 10 + (20 - 10) * 0.5 = 15;
+            </div>
+        </div>
+    </div>
+    <div class="slide-footer"><span>Three.js Mastery</span><span>Page 12/20</span></div>
+</div>
+
+<!-- PAGE 13: NORMALIZING TIME -->
+<div class="slide-container">
+    <h2 class="slide-title"><i class="fas fa-clock"></i> Normalizing Time with Delta</h2>
+    <div class="content-area">
+        <p>In our code, we must map <strong>Real Time</strong> to <strong>Normalized Progress (t)</strong>.</p>
+        <div class="code-box">
+const delta = time - lastTime; // ms since last frame<br>
+progressInFrame += delta / frameDuration;<br>
+<br>
+// Clamp at 1.0 and move to next keyframe<br>
+if (progressInFrame >= 1) {<br>
+&nbsp;&nbsp;progressInFrame = 0;<br>
+&nbsp;&nbsp;currentIndex++;<br>
+}
+        </div>
+        <p style="font-size: 18px; margin-top: 20px;">This ensures the robot moves at the same speed on a 60Hz or 144Hz monitor.</p>
+    </div>
+    <div class="slide-footer"><span>Three.js Mastery</span><span>Page 13/20</span></div>
+</div>
+
+<!-- PAGE 14: MULTI-PARAM SYNC -->
+<div class="slide-container">
+    <h2 class="slide-title"><i class="fas fa-project-diagram"></i> Multi-Parameter Synchronization</h2>
+    <div class="content-area">
+        <p>The robot doesn't just pan; it moves 7 joints simultaneously using a single <span class="highlight">t</span> value.</p>
+        <div class="code-box">
+for (let key in robotParams) {<br>
+&nbsp;&nbsp;const startVal = startFrame[key];<br>
+&nbsp;&nbsp;const endVal = endFrame[key];<br>
+<br>
+&nbsp;&nbsp;// Apply LERP to all joints in sync<br>
+&nbsp;&nbsp;robotParams[key] = startVal + (endVal - startVal) * t;<br>
+}<br>
+updateRobotVisuals(robotParams);
+        </div>
+    </div>
+    <div class="slide-footer"><span>Three.js Mastery</span><span>Page 14/20</span></div>
+</div>
+
+<!-- PAGE 15: NON-LINEAR? -->
+<div class="slide-container">
+    <h2 class="slide-title"><i class="fas fa-bezier-curve"></i> Beyond Linear: Easing (Intro)</h2>
+    <div class="content-area">
+        <div class="two-column">
+            <div>
+                <p>Linear motion is robotic. Real objects have acceleration.</p>
+                <div class="tile">
+                    <p><strong>Cubic Easing:</strong><br><code>t = t * t * (3 - 2 * t)</code></p>
+                </div>
+                <p style="font-size: 18px;">By transforming the <span class="highlight">t</span> value before LERPing, we create "Ease-in-Out" effects.</p>
+            </div>
+            <div class="info-card">
+                <p class="accent">Observation Lab:</p>
+                <p style="font-size: 16px;">Try toggling interpolation off in the project. The robot "jumps" — this is a t-value of 1.0 instantly.</p>
+            </div>
+        </div>
+    </div>
+    <div class="slide-footer"><span>Three.js Mastery</span><span>Page 15/20</span></div>
+</div>
+
+<!-- PAGE 16: PRESERVE BUFFER -->
+<div class="slide-container">
+    <h2 class="slide-title"><i class="fas fa-memory"></i> Preserve Drawing Buffer</h2>
+    <div class="content-area">
+        <div class="two-column">
+            <div class="code-box">
+renderer = new THREE.WebGLRenderer({<br>
+&nbsp;&nbsp;preserveDrawingBuffer: true<br>
+});
+            </div>
+            <div>
+                <div class="tag">GPU -> CPU BRIDGE</div>
+                <p style="font-size: 18px;">Normally, the GPU clears the pixel buffer after displaying it. If we want to <strong>Record</strong> or <strong>Screenshot</strong>, we must tell WebGL to keep the data.</p>
+                <p class="accent">Warning: This has a minor performance cost!</p>
+            </div>
+        </div>
+    </div>
+    <div class="slide-footer"><span>Three.js Mastery</span><span>Page 16/20</span></div>
+</div>
+
+<!-- PAGE 17: VIDEO EXPORT -->
+<div class="slide-container">
+    <h2 class="slide-title"><i class="fas fa-video"></i> MediaRecorder API & Canvas Capturing</h2>
+    <div class="content-area">
+        <p>How we generate the .mp4 file from raw pixels:</p>
+        <ol style="font-size: 20px;">
+            <li>Create an <strong>Offscreen Canvas</strong> for the video frame.</li>
+            <li>Use <code>ctx.drawImage(webglCanvas, ...)</code> to crop the POV window.</li>
+            <li>Start <code>mediaRecorder.start()</code>.</li>
+            <li>Push chunks of data into a <code>Blob</code> on every frame.</li>
+        </ol>
+        <p class="highlight">This happens entirely in the browser — no server required.</p>
+    </div>
+    <div class="slide-footer"><span>Three.js Mastery</span><span>Page 17/20</span></div>
+</div>
+
+<!-- PAGE 18: MATRIX MATH -->
+<div class="slide-container">
+    <h2 class="slide-title"><i class="fas fa-calculator"></i> Under the Hood: Matrix Math</h2>
+    <div class="content-area">
+        <p>Three.js objects have a <code>matrixWorld</code> property.</p>
+        <div class="formula-box">
+            M_world = M_parent_world * M_local
+        </div>
+        <p style="font-size: 18px;">Every time you move a joint, Three.js recomputes these 4x4 matrices for every child in the tree. This is why nested groups are so powerful for Robot Rigs.</p>
+    </div>
+    <div class="slide-footer"><span>Three.js Mastery</span><span>Page 18/20</span></div>
+</div>
+
+<!-- PAGE 19: PRACTICE LAB -->
+<div class="slide-container">
+    <h2 class="slide-title"><i class="fas fa-flask"></i> Studio Practice Lab</h2>
+    <div class="content-area">
+        <div class="info-card">
+            <h3>Mission: The "Cinematic Reveal"</h3>
+            <ol style="font-size: 22px;">
+                <li>Setup Keyframe 1: Low angle, looking up at the object.</li>
+                <li>Setup Keyframe 2: High angle, orbiting 180 degrees.</li>
+                <li><strong>Task:</strong> Compare the result with Interpolation ON vs OFF.</li>
+                <li><strong>Export:</strong> Record the POV and verify the Aspect Ratio in the video file.</li>
+            </ol>
+        </div>
+    </div>
+    <div class="slide-footer"><span>Three.js Mastery</span><span>Page 19/20</span></div>
+</div>
+
+<!-- PAGE 20: Q&A -->
+<div class="slide-container" style="background-color: var(--primary); color: white; justify-content: center; align-items: center; text-align: center;">
+    <h2 style="color: white; font-size: 64px;">Conclusion & Q&A</h2>
+    <p style="font-size: 28px; color: var(--secondary); margin-top: 20px;">You are now ready to build complex 3D systems!</p>
+    <div style="margin-top: 50px;">
+        <i class="fas fa-rocket" style="font-size: 100px; opacity: 0.5;"></i>
+    </div>
+    <p style="margin-top: 40px; font-size: 18px; opacity: 0.8;">Thank you for your participation.</p>
+</div>
+
+</body>
+</html>
