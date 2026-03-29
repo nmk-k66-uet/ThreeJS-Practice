@@ -1,0 +1,23 @@
+html, body {
+  height: 100%;
+  margin: 0;
+}
+#c {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+#info {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background-color: rgba(0, 0, 0, 0.8);
+    color: #00ff00;
+    padding: 15px;
+    font-family: monospace;
+    font-size: 14px;
+    pointer-events: none; /* Lets mouse clicks pass through to the canvas */
+    border-radius: 5px;
+    white-space: pre-wrap;
+    z-index: 100;
+}

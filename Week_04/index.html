@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ThreeJS: Load Model & Raycaster</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #1a1a1a; }
+        #ui-container { 
+            position: absolute; top: 20px; left: 20px; 
+            color: white; font-family: sans-serif; pointer-events: none; 
+        }
+    </style>
+
+    <!-- 1. Cấu hình Import Map bắt buộc nằm trong HTML -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+    <div id="ui-container">
+        <h3>Tương tác 3D</h3>
+        <p id="status">Trạng thái: Đang chờ mô hình...</p>
+    </div>
+
+    <!-- 2. Nhúng file JS ngoại tuyến với type="module" -->
+    <script type="module" src="demo.js"></script>
+</body>
+</html>

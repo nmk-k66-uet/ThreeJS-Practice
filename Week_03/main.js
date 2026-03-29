@@ -6,8 +6,9 @@ let scene, ambient, cameraPOV, camera3P, renderer, controls, gui;
 let robotRig, robotArm = {};
 let targetObject, helperGroup, lightList = [];
 let povLabel;
+let robotFolder;
 
-// --- QUẢN LÝ SEQUENCE ---
+// --- SEQUENCE MANAGEMENT ---
 let sequences = { "Sequence 01": [] };
 let activeSeqName = "Sequence 01";
 let isPlaying = false;
@@ -18,7 +19,7 @@ const frameDuration = 3000;
 let lastTime = 0;
 let kfFolder; 
 
-// --- GHI HÌNH ---
+// --- RECORDING ---
 let mediaRecorder;
 let recordedChunks = [];
 let isRecording = false;
@@ -152,7 +153,7 @@ function setupStudio() {
 
     gui = new GUI({ title: 'Studio Manager' });
     
-    const robotFolder = gui.addFolder('Robot Rig Controller');
+    robotFolder = gui.addFolder('Robot Rig Controller');
     robotFolder.add(robotParams, 'trackX', -15, 15).name('Track (X)').onChange(applyRobotParams);
     robotFolder.add(robotParams, 'pan', -176, 176).name('Arm Pan').onChange(applyRobotParams);
     robotFolder.add(robotParams, 'lowerLift', -90, 19).name('Lower Lift').onChange(applyRobotParams);
@@ -255,16 +256,20 @@ function setupStudio() {
     const playFolder = gui.addFolder('Playback & Render');
     const playControls = {
         playPreview: () => {
-            if (sequences[activeSeqName].length < 2) return updateStatus("Need 2 keys!");
+            if (sequences[activeSeqName].length < 1) return updateStatus("Need at least 1 key!");
             isPlaying = !isPlaying;
+            
             if (isPlaying) {
-                currentKeyframeIndex = 0;
+                resetRobot();
+                
+                currentKeyframeIndex = -1;
                 progressInFrame = 0;
+                lastTime = performance.now(); 
             }
             updateStatus(isPlaying ? "▶️ Previewing..." : "⏸️ Paused");
         },
         runAndRecord: () => {
-            if (sequences[activeSeqName].length < 2) return updateStatus("Need 2 keys!");
+            if (sequences[activeSeqName].length < 1) return updateStatus("Need at least 1 key!");
             startRecording();
         },
         interp: true
@@ -276,15 +281,17 @@ function setupStudio() {
     const lightManager = {
         addPoint: () => createDynamicLight('point'),
         addSpot: () => createDynamicLight('spot'),
+        addDirectional: () => createDynamicLight('directional'),
         addAmbient: () => createDynamicLight('ambient')
     };
     const manageFolder = gui.addFolder('Lighting Controller');
-    manageFolder.add(lightManager, 'addPoint').name('Add Point');
-    manageFolder.add(lightManager, 'addSpot').name('Add Spot');
-    manageFolder.add(lightManager, 'addAmbient').name('Add Ambient');
+    manageFolder.add(lightManager, 'addPoint').name('+ Add Point Light');
+    manageFolder.add(lightManager, 'addSpot').name('+ Add Spot Light');
+    manageFolder.add(lightManager, 'addDirectional').name('+ Add Directional Light');
+    manageFolder.add(lightManager, 'addAmbient').name('+ Add Ambient Light');
     
     gui.add(helperGroup, 'visible').name('Show Light Helpers');
-    createDynamicLight('directional', { intensity: 30, x: 0, y: 30, z: 0 });
+    createDynamicLight('directional', { intensity: 10, x: 10, y: 20, z: 10 });
 }
 
 function refreshKeyframeUI() {
@@ -301,7 +308,7 @@ function refreshKeyframeUI() {
                 if (isPlaying || isRecording) return;
                 Object.assign(robotParams, kf);
                 updateRobotVisuals(robotParams);
-                gui.controllers.forEach(c => { if (c.property in robotParams) c.updateDisplay(); });
+                robotFolder.controllers.forEach(c => c.updateDisplay());
             };
             kfFolder.add(obj, keyName);
         });
@@ -312,7 +319,7 @@ function resetRobot() {
     if (isPlaying || isRecording) return;
     Object.keys(robotParams).forEach(k => robotParams[k] = 0);
     updateRobotVisuals(robotParams);
-    gui.controllers.forEach(c => { if (c.property in robotParams) c.updateDisplay(); });
+    robotFolder.controllers.forEach(c => { if (c.property in robotParams) c.updateDisplay(); });
     updateStatus("Reset to Zero");
 }
 
@@ -333,24 +340,26 @@ function updateRobotVisuals(params) {
 }
 
 function updateAutoMotion(delta) {
-    if ((!isPlaying && !isRecording) || sequences[activeSeqName].length < 2) return;
+    if ((!isPlaying && !isRecording) || sequences[activeSeqName].length < 1) return;
 
     progressInFrame += delta / frameDuration;
 
-    if (progressInFrame >= 1) {
-        progressInFrame = 0;
+    while (progressInFrame >= 1) {
+        progressInFrame -= 1;
         currentKeyframeIndex++;
         
         if (currentKeyframeIndex >= sequences[activeSeqName].length - 1) {
             currentKeyframeIndex = 0;
+            progressInFrame = 0;
             if (isRecording) stopRecording();
             else isPlaying = false; 
             updateStatus("Done");
             return;
         }
     }
-
-    const start = sequences[activeSeqName][currentKeyframeIndex];
+    
+    const defaultState = { trackX: 0, pan: 0, lowerLift: 0, upperLift: 0, roll: 0, camTilt: 0, camPan: 0 };
+    const start = currentKeyframeIndex === -1 ? defaultState : sequences[activeSeqName][currentKeyframeIndex];
     const end = sequences[activeSeqName][currentKeyframeIndex + 1];
     const lerp = (a, b, t) => a + (b - a) * t;
 
@@ -362,18 +371,21 @@ function updateAutoMotion(delta) {
     updateRobotVisuals(currentFrameParams);
     Object.assign(robotParams, currentFrameParams);
     if (isPlaying) {
-        gui.controllers.forEach(c => { if (c.property in robotParams) c.updateDisplay(); });
+        robotFolder.controllers.forEach(c => { if (c.property in robotParams) c.updateDisplay(); });
     }
 }
 
 function startRecording() {
+    resetRobot();
+
     recordedChunks = [];
-    currentKeyframeIndex = 0;
+    currentKeyframeIndex = -1;
     progressInFrame = 0;
     isRecording = true;
+    lastTime = performance.now();
+
     updateStatus("🔴 RECORDING...");
 
-    // TÍNH TOÁN KÍCH THƯỚC DỰA TRÊN ASPECT RATIO THỰC TẾ
     const scale = 0.25;
     const pixelRatio = window.devicePixelRatio;
     const povWidth = window.innerWidth * scale * pixelRatio;
@@ -417,34 +429,42 @@ function updateStatus(msg) {
     if (statusEl) statusEl.innerText = `STATUS: ${msg}`;
 }
 
+// --- LIGHTING FUNCTION ---
 function createDynamicLight(type, config = {}) {
     let light, helper, target;
-    const id = lightList.length + 1;
+    const id = Math.random().toString(36).substr(2, 5);
     const color = config.color || 0xffffff;
     const intensity = config.intensity !== undefined ? config.intensity : 1;
-    const sync = () => { if (helper && helper.update) helper.update(); };
 
+    const sync = () => { 
+        if (helper && helper.update) helper.update(); 
+    };
+
+    // 1. Create the light object
     switch(type) {
         case 'directional':
             light = new THREE.DirectionalLight(color, intensity);
             light.castShadow = true;
-            target = light.target; scene.add(target);
+            target = light.target; 
+            scene.add(target);
             helper = new THREE.DirectionalLightHelper(light, 1);
             break;
         case 'point':
             light = new THREE.PointLight(color, intensity);
+            light.castShadow = true;
             helper = new THREE.PointLightHelper(light, 0.5);
             break;
         case 'spot':
             light = new THREE.SpotLight(color, intensity);
             light.castShadow = true;
             light.angle = Math.PI / 6;
-            target = light.target; scene.add(target);
+            target = light.target; 
+            scene.add(target);
             helper = new THREE.SpotLightHelper(light);
             break;
         case 'ambient':
             light = new THREE.AmbientLight(color, intensity);
-            helper = new THREE.Group(); 
+            helper = new THREE.Group(); // Empty group as dummy helper
             break;
     }
 
@@ -452,16 +472,61 @@ function createDynamicLight(type, config = {}) {
     scene.add(light);
     helperGroup.add(helper);
 
-    const folder = gui.addFolder(`${type.toUpperCase()} #${id}`);
+    // 2. Setup GUI folder
+    const folder = gui.addFolder(`${type.toUpperCase()} [${id}]`);
+    
+    // Common controls
     folder.addColor(light, 'color').onChange(sync);
     folder.add(light, 'intensity', 0, 100);
+
+    // Position controls
     if (type !== 'ambient') {
         const posF = folder.addFolder('Position');
-        posF.add(light.position, 'x', -20, 20).onChange(sync);
-        posF.add(light.position, 'y', 0, 30).onChange(sync);
-        posF.add(light.position, 'z', -20, 20).onChange(sync);
+        posF.add(light.position, 'x', -40, 40).onChange(sync);
+        posF.add(light.position, 'y', 0, 50).onChange(sync);
+        posF.add(light.position, 'z', -40, 40).onChange(sync);
     }
-    lightList.push({ light, helper, folder, target });
+
+    // Advanced controls
+    if (type === 'point' || type === 'spot') {
+        folder.add(light, 'distance', 0, 200).onChange(sync);
+        folder.add(light, 'decay', 0, 10).onChange(sync);
+    }
+
+    if (type === 'spot') {
+        folder.add(light, 'angle', 0, Math.PI / 2).onChange(sync);
+        folder.add(light, 'penumbra', 0, 1).onChange(sync);
+    }
+
+    // Target controls for directional/spot
+    if (target) {
+        const tarF = folder.addFolder('Target Pos');
+        tarF.add(target.position, 'x', -20, 20).onChange(sync);
+        tarF.add(target.position, 'y', 0, 20).onChange(sync);
+        tarF.add(target.position, 'z', -20, 20).onChange(sync);
+    }
+
+    // Shadow toggle
+    if (light.shadow) {
+        folder.add(light, 'castShadow').name('Cast Shadow');
+    }
+
+    // DELETION FUNCTION
+    const deleteParams = {
+        delete: () => {
+            scene.remove(light);
+            if (target) scene.remove(target);
+            helperGroup.remove(helper);
+            folder.destroy();
+            // Remove from tracking list
+            lightList = lightList.filter(item => item.id !== id);
+            updateStatus("Light Removed");
+        }
+    };
+    folder.add(deleteParams, 'delete').name('🗑️ Delete Light');
+
+    // Store in list
+    lightList.push({ id, light, helper, folder, target });
     sync();
 }
 
@@ -476,7 +541,7 @@ function animate(time) {
     updateAutoMotion(delta);
 
     lightList.forEach(l => { 
-        if (l.helper && l.helper.visible && l.helper.update) l.helper.update(); 
+        if (l.helper && l.helper.update) l.helper.update(); 
     });
 
     renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
@@ -489,7 +554,7 @@ function animate(time) {
     const povWidth = window.innerWidth * scale;
     const povHeight = window.innerHeight * scale;
     const margin = 20;
-    const povX = window.innerWidth - povWidth - margin;
+    const povX = 0;
     const povY = margin;
 
     renderer.setViewport(povX, povY, povWidth, povHeight);
@@ -503,8 +568,6 @@ function animate(time) {
     if (isRecording) {
         const pixelRatio = window.devicePixelRatio;
         const sourceX = povX * pixelRatio;
-        // WEBGL Y bắt đầu từ đáy, CANVAS Y bắt đầu từ đỉnh. 
-        // sourceY trong drawImage tính từ đỉnh canvas nguồn.
         const sourceY = (window.innerHeight - povHeight - povY) * pixelRatio;
         const sourceW = povWidth * pixelRatio;
         const sourceH = povHeight * pixelRatio;
