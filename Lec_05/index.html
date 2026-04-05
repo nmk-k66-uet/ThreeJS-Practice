@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ thống hạt Lửa & Bóng đổ - Three.js</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: sans-serif;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            pointer-events: none;
+            max-width: 350px;
+            line-height: 1.5;
+        }
+        .highlight {
+            color: #ffaa00;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <h3>Hệ thống hạt & Bóng đổ</h3>
+        <p>- <span class="highlight">Hình ảnh ngọn lửa:</span> Tạo từ 1000 hạt di chuyển liên tục lên trên.</p>
+        <p>- <span class="highlight">Bóng đổ:</span> Tạo từ một PointLight (ẩn giữa đám lửa) liên tục thay đổi cường độ và vị trí.</p>
+        <p><i>Kéo chuột để xoay camera, cuộn để zoom.</i></p>
+    </div>
+
+    <script type="module" src="main.js">
+    </script>
+</body>
+</html>
