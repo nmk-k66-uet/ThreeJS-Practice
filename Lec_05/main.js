@@ -39,7 +39,7 @@ function init() {
     // 4. Tạo hệ thống hạt lửa (Particles) với texture gradient để tạo hiệu ứng lửa
     createFireParticles();
 
-    // 5. Tạo nguồn sáng (PointLight) ẩn giữa đám lửa để tạo bóng đổ
+    // 5. Tạo nguồn sáng (PointLight) ẩn giữa đám lửa để tạo bóng
     createFireLight();
 
     window.addEventListener('resize', onWindowResize);
@@ -99,7 +99,6 @@ function createFireParticles() {
     });
 
     fireParticles = new THREE.Points(geometry, material);
-    fireParticles.position.y = 0.5; // Nâng lửa lên một chút
     scene.add(fireParticles);
 }
 
