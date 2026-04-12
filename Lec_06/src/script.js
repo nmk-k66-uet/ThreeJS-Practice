@@ -188,7 +188,7 @@ const animation_loop = () => {
     labelRenderer.render(scene, camera); // Render lớp chữ HTML đè lên trên Canvas
     
     stats.end(); // Kết thúc tính thời gian render khung hình
-    window.requestAnimationFrame(renderloop); // Yêu cầu trình duyệt tiếp tục gọi hàm này ở khung hình tiếp theo (tạo thành vòng lặp vô hạn)
+    window.requestAnimationFrame(animation_loop); // Yêu cầu trình duyệt tiếp tục gọi hàm này ở khung hình tiếp theo (tạo thành vòng lặp vô hạn)
 };
 
 // Khởi chạy hệ thống vòng lặp
